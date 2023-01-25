@@ -1,45 +1,37 @@
 import { ApolloServer } from "@apollo/server";
-import { startStandaloneServer } from "@apollo/server/standalone";
+import { expressMiddleware } from "@apollo/server/express4";
+import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
+import express from "express";
+import http from "http";
+import cors from "cors";
+import bodyParser from "body-parser";
 
-const books = [
-  {
-    title: "The Awakening",
-    author: "Kate Chopin",
-  },
-  {
-    title: "City of Glass",
-    author: "Paul Auster",
-  },
-];
-
+// The GraphQL schema
 const typeDefs = `#graphql
-  type Book {
-    title: String
-    author: String
-  }
-
   type Query {
-    books: [Book]
+    hello: String
   }
 `;
 
+// A map of functions which return data for the schema.
 const resolvers = {
   Query: {
-    books: () => books,
+    hello: () => "world",
   },
 };
 
+const app = express();
+const httpServer = http.createServer(app);
+
+// Set up Apollo Server
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
 });
+await server.start();
 
-// Passing an ApolloServer instance to the `startStandaloneServer` function:
-//  1. creates an Express app
-//  2. installs your ApolloServer instance as middleware
-//  3. prepares your app to handle incoming requests
-const { url } = await startStandaloneServer(server, {
-  listen: { port: 4000 },
-});
+app.use(cors(), bodyParser.json(), expressMiddleware(server));
 
-console.log(`🚀  Server ready at: ${url}`);
+await new Promise((resolve: any) => httpServer.listen({ port: 4000 }, resolve));
+console.log(`🚀 Server ready at http://localhost:4000`);
